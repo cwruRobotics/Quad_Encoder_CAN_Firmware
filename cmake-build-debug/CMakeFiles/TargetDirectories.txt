@@ -1,0 +1,3 @@
+/Users/bscholar/dev/CANCoder/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/bscholar/dev/CANCoder/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/bscholar/dev/CANCoder/cmake-build-debug/CMakeFiles/CANCoder.elf.dir
