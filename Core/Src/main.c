@@ -68,6 +68,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 uint8_t CAN_ID;
 HAL_StatusTypeDef CAN_status;
+uint32_t current_time_ms;
 
 uint32_t uart_size;
 uint8_t uart_buffer[UART_BUFFER_SIZE] = {};
@@ -127,7 +128,6 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  // TODO(Ben): Interrupts for A and B from encoder
   // do we care about x?
 
   // start CAN
@@ -139,14 +139,14 @@ int main(void)
 
   // get CAN ID from jumpers
   CAN_ID = 0b00000000;
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOA, CAN_ID_1_Pin  ) << 0);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOA, CAN_ID_2_Pin  ) << 1);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOA, CAN_ID_4_Pin  ) << 2);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_8_Pin  ) << 3);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_16_Pin ) << 4);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_32_Pin ) << 5);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_64_Pin ) << 6);
-  CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_128_Pin) << 7);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_1_GPIO_Port,   CAN_ID_1_Pin   ) << 0);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_2_GPIO_Port,   CAN_ID_2_Pin   ) << 1);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_4_GPIO_Port,   CAN_ID_4_Pin   ) << 2);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_8_GPIO_Port,   CAN_ID_8_Pin   ) << 3);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_16_GPIO_Port,  CAN_ID_16_Pin  ) << 4);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_32_GPIO_Port,  CAN_ID_32_Pin  ) << 5);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_64_GPIO_Port,  CAN_ID_64_Pin  ) << 6);
+  CAN_ID += (HAL_GPIO_ReadPin(CAN_ID_128_GPIO_Port, CAN_ID_128_Pin ) << 7);
 
   // transmit CAN ID for debug
   #ifdef DEBUG_PRINTS
@@ -186,6 +186,8 @@ int main(void)
         continue; // not sure if this is the right move
     }
 
+    // get current time
+    current_time_ms = HAL_GetTick();
 
     // check if we have any CAN messages to read
     uint32_t can_frame_available = HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0);
@@ -207,7 +209,8 @@ int main(void)
               // not an error, but we won't do anything about it
           } else {
               // check for requests that we recognise
-              switch (data[1]) {
+              switch (data[0]) {
+                  // read first bit in the message as the request type
                   case REQUEST_RESET_TICKS:
                       // set ticks to 0
                       encoder_ticks = 0;
@@ -267,9 +270,8 @@ int main(void)
     }
 
     // this is just for making sure it's on for
-    // turn this back on after plane flight
-//    HAL_GPIO_WritePin(GPIOA, EEPROM_LED_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_TogglePin(GPIOA, EEPROM_LED_Pin);
+    HAL_GPIO_WritePin(GPIOA, EEPROM_LED_Pin, GPIO_PIN_SET);
+    HAL_GPIO_TogglePin(GPIOA, EEPROM_LED_Pin);
 
     // delay for 200 ms, replace this later with a timer of some sort?
 //    HAL_Delay(LOOP_SLEEP_TIME);
@@ -462,7 +464,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = CAN_TRAFFIC_LED_Pin|EEPROM_LED_Pin|Encoder_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : POWER_SENSE_Pin */
@@ -488,7 +490,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : ENC_X_Pin ENC_A_Pin */
   GPIO_InitStruct.Pin = ENC_X_Pin|ENC_A_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -543,7 +545,11 @@ _Bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if(GPIO_Pin == ENC_A_Pin) {
-    // read pins and determine rotation
+      // we know that A is high
+      // so check b to determine rotation
+      _Bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
+      encoder_ticks += b_high ? 1 : -1;
+
   } else if (GPIO_Pin == ENC_X_Pin) {
     // figure out what this does and why we need it
   }
