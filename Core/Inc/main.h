@@ -86,12 +86,14 @@ void Error_Handler(void);
 #define MEM_SDA_GPIO_Port GPIOB
 #define MEM_SCL_Pin GPIO_PIN_13
 #define MEM_SCL_GPIO_Port GPIOB
-#define CAN_X_Pin GPIO_PIN_5
-#define CAN_X_GPIO_Port GPIOB
-#define CAN_A_Pin GPIO_PIN_6
-#define CAN_A_GPIO_Port GPIOB
-#define CAN_B_Pin GPIO_PIN_7
-#define CAN_B_GPIO_Port GPIOB
+#define ENC_X_Pin GPIO_PIN_5
+#define ENC_X_GPIO_Port GPIOB
+#define ENC_X_EXTI_IRQn EXTI9_5_IRQn
+#define ENC_A_Pin GPIO_PIN_6
+#define ENC_A_GPIO_Port GPIOB
+#define ENC_A_EXTI_IRQn EXTI9_5_IRQn
+#define ENC_B_Pin GPIO_PIN_7
+#define ENC_B_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 /* USER CODE END Private defines */
 

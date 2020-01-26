@@ -23,26 +23,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "string.h"
+#include "encoder.h"
+#include <stdio.h>
+#include "types.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef enum {
-    TickFrameType = 0x00,
-    ErrorFrameType = 0xFF
-} FrameType;
-
-typedef enum {
-    None = 0x00
-} ErrorType;
-
-typedef struct {
-    uint8_t type;
-    uint8_t error_type;
-    uint32_t ticks;
-} Frame;
-
-
 
 /* USER CODE END PTD */
 
@@ -53,7 +41,14 @@ typedef struct {
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define FRAME_LEN_MAX 127
+#define LOOP_SLEEP_TIME 250 // ms
+#define CAN_MESSAGE_FREQUENCY 20 //hz or once ever 50 ms
+
+#define FALSE 0
+#define TRUE  1
+
+#define UART_PRINT_TIMEOUT 200 // ms
+#define UART_BUFFER_SIZE 1024
 
 #define DEBUG_PRINTS
 #ifdef DEBUG_PRINTS
@@ -66,21 +61,20 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
+RTC_HandleTypeDef hrtc;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-CAN_FilterTypeDef hcan_filter;
-
 uint8_t CAN_ID;
 HAL_StatusTypeDef CAN_status;
-static uint8_t tx_buffer[FRAME_LEN_MAX];
-static uint8_t rx_buffer[FRAME_LEN_MAX];
-static uint8_t uCurrentTrim_val;
 
-uint8_t usart_buffer[1024] = {};
-HAL_StatusTypeDef USART_status;
+uint32_t uart_size;
+uint8_t uart_buffer[UART_BUFFER_SIZE] = {};
+HAL_StatusTypeDef UART_status;
 
-_Bool enabled = 0;
+_Bool can_connected;
+__volatile int32_t encoder_ticks;
 
 /* USER CODE END PV */
 
@@ -89,6 +83,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 void debug(UART_HandleTypeDef* huart, char* message);
 _Bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame);
@@ -130,12 +125,19 @@ int main(void)
   MX_GPIO_Init();
   MX_CAN_Init();
   MX_USART1_UART_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+  // TODO(Ben): Interrupts for A and B from encoder
+  // do we care about x?
 
   // start CAN
-  HAL_CAN_Start(&hcan);
+  CAN_status = HAL_CAN_Start(&hcan);
+  if(CAN_status != HAL_OK) {
+      // bad
+      DEBUG("Could not start CAN transmission.");
+  }
 
-  // check CAN ID from jumpers
+  // get CAN ID from jumpers
   CAN_ID = 0b00000000;
   CAN_ID += (HAL_GPIO_ReadPin(GPIOA, CAN_ID_1_Pin  ) << 0);
   CAN_ID += (HAL_GPIO_ReadPin(GPIOA, CAN_ID_2_Pin  ) << 1);
@@ -146,7 +148,23 @@ int main(void)
   CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_64_Pin ) << 6);
   CAN_ID += (HAL_GPIO_ReadPin(GPIOB, CAN_ID_128_Pin) << 7);
 
-  DEBUG("Using CAN ID: \r");
+  // transmit CAN ID for debug
+  #ifdef DEBUG_PRINTS
+  uart_size = sprintf((char*) uart_buffer, "CAN ID selected: %d \t", CAN_ID);
+  UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
+  #endif
+
+  // initialize
+  can_connected = 0;
+
+  // set encoder ticks to 0 for now
+  // later we will read value from EEPROM
+  encoder_ticks = 0;
+
+  #ifdef DEBUG_PRINTS
+  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_ticks);
+  UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
+  #endif
 
   /* USER CODE END 2 */
 
@@ -157,34 +175,104 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
+    // first, check if power is ok
+    GPIO_PinState power_ok = !HAL_GPIO_ReadPin(GPIOA, POWER_SENSE_Pin);
+
+    // if it's not ok, freak out and save ticks to EEPROM
+    if(!power_ok) {
+        DEBUG("Damn that's tuff... Power low.");
+        //TODO(Ben): Save to EEPROM
+        continue; // not sure if this is the right move
+    }
+
+
+    // check if we have any CAN messages to read
     uint32_t can_frame_available = HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0);
     if(can_frame_available > 0) {
+      // initialize
       CAN_RxHeaderTypeDef hddr;
       uint8_t data[8];
+
+      // get data from message
       CAN_status = HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO0, &hddr, data);
 
       // read messages
       if(CAN_status == HAL_OK && hddr.RTR == CAN_RTR_REMOTE && hddr.StdId == CAN_ID) {
+          // since we are receiving messages, set can traffic led to on.
+          can_connected = 1;
 
+          // check if message is less than 2 bytes long because bad
+          if(hddr.DLC < 1) {
+              // not an error, but we won't do anything about it
+          } else {
+              // check for requests that we recognise
+              switch (data[1]) {
+                  case REQUEST_RESET_TICKS:
+                      // set ticks to 0
+                      encoder_ticks = 0;
+
+                      // transmit a message if in debug mode
+                      #ifdef DEBUG_PRINTS
+                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", encoder_ticks);
+                      UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
+                      #endif
+
+                      break;
+                  case REQUEST_SET_TICKS:
+                      // check if CAN message is long enough to store the correct information
+                      if(hddr.DLC < 5) {
+                          // bad CAN frame, just leave the ticks the same and throw an error
+                          // encoder_ticks = 0; // probably should'nt do this
+                          // tell the user that they messed up
+                          DEBUG("Bad CAN frame. Set ticks frame requires 5 bytes of data. Setting ticks to 0!");
+                          break;
+                      }
+                      // copy desired ticks value to local variable
+                      memcpy(&encoder_ticks, &data + 1, 4); // this throws a warning, how bad is such warning?
+
+                      // transmit a message if in debug mode
+                      #ifdef DEBUG_PRINTS
+                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_ticks);
+                      UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
+                      #endif
+                      break;
+                  case REQUEST_NONE:
+                  default:
+                      // do nothing
+                      break;
+              }
+          }
       }
     }
 
-    if(enabled) {
-        // do something
-    }
 
-    GPIO_PinState test = HAL_GPIO_ReadPin(GPIOA, CAN_ID_2_Pin);
-    if(test) {
-      HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
+    // TODO(Ben): we probably don't want to do this every tick, we'll need to figure that out
+    // initialize frame
+    Frame frame;
+
+    // fill data in frame
+    frame.type = FRAME_TYPE_TICKS;
+    frame.error_type = ERROR_TYPE_NONE;
+    frame.ticks = encoder_ticks;
+
+    // send the can frame with ticks in it
+    _Bool can_send_success = send_CAN_update(&hcan, &frame);
+
+    // if can bus is working, turn the can traffic light on
+    if(can_connected) {
+        HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
     } else {
-      HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET);
     }
 
-//    HAL_GPIO_TogglePin(GPIOA, CAN_TRAFFIC_LED_Pin);
-    HAL_GPIO_TogglePin(GPIOA, EEPROM_LED_Pin);
-    HAL_GPIO_TogglePin(GPIOA, Encoder_LED_Pin);
-    DEBUG("Test");
-    HAL_Delay(500);
+    // this is just for making sure it's on for
+    // turn this back on after plane flight
+//    HAL_GPIO_WritePin(GPIOA, EEPROM_LED_Pin, GPIO_PIN_SET);
+//    HAL_GPIO_TogglePin(GPIOA, EEPROM_LED_Pin);
+
+    // delay for 200 ms, replace this later with a timer of some sort?
+//    HAL_Delay(LOOP_SLEEP_TIME);
   }
   /* USER CODE END 3 */
 }
@@ -197,13 +285,15 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -221,6 +311,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -258,17 +354,49 @@ static void MX_CAN_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN_Init 2 */
-  hcan_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
-  hcan_filter.FilterMode = CAN_FILTERMODE_IDMASK;
-  hcan_filter.FilterScale = CAN_FILTERSCALE_32BIT;
-  hcan_filter.FilterIdHigh = 0x0000;
-  hcan_filter.FilterIdLow = 0x0000;
-  hcan_filter.FilterMaskIdHigh = 0x0000;
-  hcan_filter.FilterMaskIdLow = 0x0000;
-  hcan_filter.FilterBank = 0;
-  hcan_filter.FilterActivation = CAN_FILTER_ENABLE;
-  HAL_CAN_ConfigFilter(&hcan, &hcan_filter);
+  CAN_FilterTypeDef can_filter;
+
+  can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
+  can_filter.FilterMode = CAN_FILTERMODE_IDMASK;
+  can_filter.FilterScale = CAN_FILTERSCALE_32BIT;
+  can_filter.FilterIdHigh = 0x0000;
+  can_filter.FilterIdLow = 0x0000;
+  can_filter.FilterMaskIdHigh = 0x0000;
+  can_filter.FilterMaskIdLow = 0x0000;
+  can_filter.FilterBank = 0;
+  can_filter.FilterActivation = CAN_FILTER_ENABLE;
+  HAL_CAN_ConfigFilter(&hcan, &can_filter);
   /* USER CODE END CAN_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+  /** Initialize RTC Only 
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
+  hrtc.Init.OutPut = RTC_OUTPUTSOURCE_ALARM;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
 
 }
 
@@ -300,7 +428,6 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-
   /* USER CODE END USART1_Init 2 */
 
 }
@@ -359,11 +486,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : CAN_X_Pin CAN_A_Pin CAN_B_Pin */
-  GPIO_InitStruct.Pin = CAN_X_Pin|CAN_A_Pin|CAN_B_Pin;
+  /*Configure GPIO pins : ENC_X_Pin ENC_A_Pin */
+  GPIO_InitStruct.Pin = ENC_X_Pin|ENC_A_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ENC_B_Pin */
+  GPIO_InitStruct.Pin = ENC_B_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(ENC_B_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 
@@ -374,24 +511,44 @@ void debug(UART_HandleTypeDef* huart, char* message) {
     while(c != '\r') {
         c = message[len++];
     }
-    HAL_UART_Transmit(huart, (uint8_t*)message, len, 500);
+    HAL_UART_Transmit(huart, (uint8_t*)message, len, UART_PRINT_TIMEOUT);
     char newline[] = {'\n'};
-    HAL_UART_Transmit(huart, newline, 1, 500);
+    HAL_UART_Transmit(huart, newline, 1, UART_PRINT_TIMEOUT);
 }
 
-_Bool send_CAN_message(CAN_HandleTypeDef* hcan, Frame* frame) {
+_Bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame) {
+    static const uint8_t message_length = 6; // we could possibly change this as needed. But do we need to?
+    // initialize stuff
     CAN_TxHeaderTypeDef hddr;
     uint32_t mailbox;
-    uint8_t data[8];
+    uint8_t data[message_length];
+
+    // set all data to 0
+    memset(&data, 0, sizeof(data));
+
+    // configure CAN message
     hddr.StdId = CAN_ID;
     hddr.IDE = CAN_ID_STD;
     hddr.RTR = CAN_RTR_DATA;
-    hddr.DLC = 8;
+    hddr.DLC = message_length;
+
+    // set data frame desired frame
     data[0] = frame->type;
     data[1] = frame->error_type;
-    data[2] = frame->ticks;
+    memcpy(data + 2, &(frame->ticks), 4); // should we still send this if there is an error?
+
+    // send the message and check for error
     return HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox) == HAL_OK;
 }
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if(GPIO_Pin == ENC_A_Pin) {
+    // read pins and determine rotation
+  } else if (GPIO_Pin == ENC_X_Pin) {
+    // figure out what this does and why we need it
+  }
+}
+
 
 /* USER CODE END 4 */
 
