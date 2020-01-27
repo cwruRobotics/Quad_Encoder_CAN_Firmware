@@ -6,8 +6,9 @@
 #define CANCODER_TYPES_H
 
 typedef enum {
-  FRAME_TYPE_TICKS = 0x00,
-  FRAME_TYPE_ERROR = 0xFF
+  FRAME_TYPE_TICKS    = 0x00,
+  FRAME_TYPE_VELOCITY = 0x01, // we may not use this for now
+  FRAME_TYPE_ERROR    = 0xFF
 } FrameType;
 
 typedef enum {
@@ -22,9 +23,11 @@ typedef struct {
 
 // enum specifying commands that can be read from incoming CAN messages.
 typedef enum {
-  REQUEST_NONE = 0x00,
-  REQUEST_RESET_TICKS = 0x01,
-  REQUEST_SET_TICKS = 0x02,
+  REQUEST_NONE                = 0x00,
+  REQUEST_RESET_TICKS         = 0x01,
+  REQUEST_SET_TICKS           = 0x02,
+  REQUEST_SET_POLARITY        = 0x03,
+  REQUEST_SET_FEEDBACK_PERIOD = 0x04
 } IncomingRequestType;
 
 #endif //CANCODER_TYPES_H
