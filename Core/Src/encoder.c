@@ -45,6 +45,8 @@ bool get_encoder_inverted() {
 }
 
 // https://cdn.sparkfun.com/datasheets/Robotics/How%20to%20use%20a%20quadrature%20encoder.pdf
+// http://www.ni.com/tutorial/7109/en/
+// what encoding scene should we use? X1, X2, X4? X4 requires 4 times the interrupts as X1
 EncoderStatus increment_encoder_from_GPIO(bool a_high, bool b_high) {
     current_GPIO_value = 0;
     current_GPIO_value += a_high << 1;

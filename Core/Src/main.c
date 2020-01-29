@@ -487,9 +487,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(POWER_SENSE_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : CAN_ID_8_Pin CAN_ID_16_Pin CAN_ID_32_Pin CAN_ID_64_Pin 
-                           CAN_ID_128_Pin */
+                           CAN_ID_128_Pin ENC_B_Pin */
   GPIO_InitStruct.Pin = CAN_ID_8_Pin|CAN_ID_16_Pin|CAN_ID_32_Pin|CAN_ID_64_Pin 
-                          |CAN_ID_128_Pin;
+                          |CAN_ID_128_Pin|ENC_B_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -501,17 +501,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ENC_X_Pin ENC_A_Pin */
-  GPIO_InitStruct.Pin = ENC_X_Pin|ENC_A_Pin;
+  /*Configure GPIO pin : ENC_X_Pin */
+  GPIO_InitStruct.Pin = ENC_X_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(ENC_X_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : ENC_B_Pin */
-  GPIO_InitStruct.Pin = ENC_B_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(ENC_B_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin : ENC_A_Pin */
+  GPIO_InitStruct.Pin = ENC_A_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(ENC_A_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
@@ -532,9 +532,7 @@ void debug(UART_HandleTypeDef* huart, char* message) {
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-  if(GPIO_Pin == ENC_A_Pin) {
-      // we know that A is high
-      // so check b to determine rotation
+  if(GPIO_Pin == ENC_A_Pin || GPIO_Pin == ENC_B_Pin) {
       bool a_high = HAL_GPIO_ReadPin(ENC_A_GPIO_Port, ENC_A_Pin);
       bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
       increment_encoder_from_GPIO(a_high, b_high);

@@ -37,4 +37,10 @@ typedef enum {
     ENCODER_COUNT_ERROR  = 0x01
 } EncoderStatus;
 
+typedef enum {
+    X1,
+    X2,
+    X4
+} EncoderEncoding;
+
 #endif //CANCODER_TYPES_H
