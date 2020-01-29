@@ -14,7 +14,7 @@
 #include <stdbool.h>
 
 // VARIABLES
-const static uint8_t CAN_message_length = 6;
+extern const uint8_t CAN_message_length;
 
 extern uint8_t           CAN_id               ;
 extern uint32_t          last_message_sent_ms ;
@@ -28,16 +28,16 @@ extern uint32_t CAN_outgoing_message_period_ms;
 
 
 // INCOMING FRAME API
-void process_incoming_frame(CAN_RxHeaderTypeDef* frame);
+extern void process_incoming_frame(CAN_RxHeaderTypeDef* frame);
 
-void process_reset_ticks_request();
-void process_set_ticks_request();
-void process_set_polarity_request();
-void process_set_feedback_period_request();
+extern void process_reset_ticks_request();
+extern void process_set_ticks_request();
+extern void process_set_polarity_request();
+extern void process_set_feedback_period_request();
 
 
 // OUTGOING FRAME API
-bool CAN_should_update(uint32_t current_time_ms);
-bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id);
+extern bool CAN_should_update(uint32_t current_time_ms);
+extern bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id);
 
 #endif //CANCODER_CAN_API_H

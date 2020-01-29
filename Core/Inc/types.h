@@ -5,6 +5,8 @@
 #ifndef CANCODER_TYPES_H
 #define CANCODER_TYPES_H
 
+#define __volatile volatile
+
 typedef enum {
   FRAME_TYPE_TICKS    = 0x00,
   FRAME_TYPE_VELOCITY = 0x01, // we may not use this for now

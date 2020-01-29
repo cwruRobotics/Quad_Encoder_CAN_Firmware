@@ -30,6 +30,7 @@
 #include "CAN_api.h"
 #include "types.h"
 #include "encoder.h"
+#include "eeprom.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -151,12 +152,9 @@ int main(void)
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
-  // initialize
-  CAN_connected = 0;
+  // read settings from eeprom
 
-  // set encoder ticks to 0 for now
-  // later we will read value from EEPROM
-  encoder_count = 0;
+  // read encoder ticks from the eeprom
 
   #ifdef DEBUG_PRINTS
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
@@ -174,7 +172,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     // first, check if power is ok
-    GPIO_PinState power_ok = !HAL_GPIO_ReadPin(GPIOA, POWER_SENSE_Pin);
+    bool power_ok = !HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
@@ -259,8 +257,7 @@ int main(void)
     }
 
 
-    // TODO(Ben): we probably don't want to do this every tick, we'll need to figure that out
-    // initialize frame
+    // check if it's time to send a frame
     if(CAN_should_update(current_time_ms)) {
         Frame frame;
 
@@ -534,7 +531,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if(GPIO_Pin == ENC_A_Pin) {
       // we know that A is high
       // so check b to determine rotation
-      _Bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
+      bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
       encoder_count += b_high ? 1 : -1;
 
   } else if (GPIO_Pin == ENC_X_Pin) {
