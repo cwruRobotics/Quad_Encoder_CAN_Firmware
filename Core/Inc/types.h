@@ -32,4 +32,9 @@ typedef enum {
   REQUEST_SET_FEEDBACK_PERIOD = 0x04
 } IncomingRequestType;
 
+typedef enum {
+    ENCODER_OK           = 0x00,
+    ENCODER_COUNT_ERROR  = 0x01
+} EncoderStatus;
+
 #endif //CANCODER_TYPES_H

@@ -157,7 +157,7 @@ int main(void)
   // read encoder ticks from the eeprom
 
   #ifdef DEBUG_PRINTS
-  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
+  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", get_encoder_count());
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
@@ -208,11 +208,11 @@ int main(void)
                   // read first bit in the message as the request type
                   case REQUEST_RESET_TICKS:
                       // set ticks to 0
-                      encoder_count = 0;
+                      reset_encoder_count();
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", encoder_count);
+                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", get_encoder_count());
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
 
@@ -227,11 +227,15 @@ int main(void)
                           break;
                       }
                       // copy desired ticks value to local variable
-                      memcpy(&encoder_count, &data + 1, 4); // this throws a warning, how bad is such warning?
+
+                      // will this work
+                      void* buffer;
+                      memcpy(&buffer, &data + 1, 4); // this throws a warning, how bad is such warning?
+                      set_encoder_count((int32_t) buffer);
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_count);
+                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", get_encoder_count());
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
                       break;
@@ -264,7 +268,7 @@ int main(void)
         // fill data in frame
         frame.type = FRAME_TYPE_TICKS;
         frame.error_type = ERROR_TYPE_NONE;
-        frame.ticks = encoder_count;
+        frame.ticks = get_encoder_count();
 
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
@@ -531,9 +535,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   if(GPIO_Pin == ENC_A_Pin) {
       // we know that A is high
       // so check b to determine rotation
+      bool a_high = HAL_GPIO_ReadPin(ENC_A_GPIO_Port, ENC_A_Pin);
       bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
-      encoder_count += b_high ? 1 : -1;
-
+      increment_encoder_from_GPIO(a_high, b_high);
   } else if (GPIO_Pin == ENC_X_Pin) {
     // figure out what this does and why we need it
   }
