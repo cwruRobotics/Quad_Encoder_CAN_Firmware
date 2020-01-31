@@ -5,6 +5,8 @@
 #ifndef CANCODER_TYPES_H
 #define CANCODER_TYPES_H
 
+#include <stdbool.h>
+
 typedef enum {
   FRAME_TYPE_TICKS    = 0x00,
   FRAME_TYPE_VELOCITY = 0x01, // we may not use this for now
@@ -28,19 +30,11 @@ typedef enum {
   REQUEST_SET_TICKS           = 0x02,
   REQUEST_SET_POLARITY        = 0x03,
   REQUEST_SET_FEEDBACK_PERIOD = 0x04,
-  REQUEST_SET_ENCODING        = 0x05 // we may not use this, may set at compile time.
 } IncomingRequestType;
 
 typedef enum {
     ENCODER_OK           = 0x00,
     ENCODER_COUNT_ERROR  = 0x01
 } EncoderStatus;
-
-typedef enum {
-    ENCODING_X1          = 0x01,
-    ENCODING_X2          = 0x02,
-    ENCODING_X4          = 0x04,
-} EncoderEncoding;
-
 
 #endif //CANCODER_TYPES_H

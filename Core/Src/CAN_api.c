@@ -11,12 +11,12 @@ uint8_t           CAN_id                         = 0b00000000 ;
 static uint32_t          last_message_sent_ms           = 0          ;
 bool              CAN_connected                  = false      ;
 HAL_StatusTypeDef CAN_status                     = 0x00       ;
-uint32_t          CAN_outgoing_message_period_ms = 0          ;
+uint16_t          CAN_outgoing_message_period_ms = 0          ;
 
 const static uint8_t CAN_message_length = 6;
 
-void process_incoming_frame(CAN_RxHeaderTypeDef* frame) {
-
+void process_incoming_frame(CAN_RxHeaderTypeDef* frame, uint8_t* data) {
+//    if(frame->)
 }
 
 bool CAN_should_update(uint32_t current_time_ms) {

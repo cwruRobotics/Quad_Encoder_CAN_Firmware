@@ -7,10 +7,10 @@
 #define BUFFER_LEN 100
 
 // PUBLIC VARIABLES
-__volatile int32_t       encoder_count      = 0      ;
-__volatile double        encoder_velocity   = 0.0    ;
-__volatile bool          encoder_inverted   = false  ;
-__volatile EncoderStatus encoder_status = ENCODER_OK ;
+__volatile int32_t       encoder_count      = 0          ;
+__volatile double        encoder_velocity   = 0.0        ;
+__volatile bool          encoder_inverted   = false      ;
+__volatile EncoderStatus encoder_status     = ENCODER_OK ;
 
 // PRIVATE VARIABLES
 static __volatile uint8_t  _current_GPIO_value = 0             ;

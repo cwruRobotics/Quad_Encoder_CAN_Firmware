@@ -23,8 +23,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "string.h"
+#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 
 #include "CAN_api.h"
@@ -46,11 +47,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define LOOP_SLEEP_TIME 250 // ms
-#define CAN_MESSAGE_FREQUENCY 20 //hz or once ever 50 ms
-
-#define FALSE 0
-#define TRUE  1
+#define ENCODING 2
 
 #define UART_PRINT_TIMEOUT 200 // ms
 #define UART_BUFFER_SIZE 1024
@@ -161,7 +158,42 @@ int main(void)
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
+    {
+        GPIO_InitTypeDef initTypeDef;
+        #if(ENCODING == 1)
+            initTypeDef.Pin =  ENC_A_Pin;
+            initTypeDef.Mode = GPIO_MODE_IT_RISING;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
 
+            initTypeDef.Pin =  ENC_B_Pin;
+            initTypeDef.Mode = GPIO_MODE_INPUT;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+        #elif(ENCODING == 2)
+            initTypeDef.Pin = ENC_A_Pin;
+            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
+
+            initTypeDef.Pin = ENC_B_Pin;
+            initTypeDef.Mode = GPIO_MODE_INPUT;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+        #elif(ENCODING == 4)
+            initTypeDef.Pin =  ENC_A_Pin;
+            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
+
+            initTypeDef.Pin =  ENC_B_Pin;
+            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+            initTypeDef.Pull = GPIO_PULLDOWN;
+            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+            #else
+            #error
+        #endif
+    }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -204,7 +236,7 @@ int main(void)
           if(hddr.DLC < 1) {
               // not an error, but we won't do anything about it
           } else {
-              // check for requests that we recognise
+              // check for requests that we recognize
               switch (data[0]) {
                   // read first bit in the message as the request type
                   case REQUEST_RESET_TICKS:
@@ -227,7 +259,7 @@ int main(void)
                           DEBUG("Bad CAN frame. Set ticks frame requires 5 bytes of data. Setting ticks to 0!");
                           break;
                       }
-                      // copy desired ticks value to local variable
+                      // read 32 bit signed int
                       memcpy_v(&encoder_count, &data + 1, 4);
 
                       // transmit a message if in debug mode
@@ -241,12 +273,22 @@ int main(void)
                           // bad frame
                           break;
                       }
+                      // read 1 bit bool
+                      memcpy_v(&encoder_inverted, &data + 1, 1);
+
+                      #ifdef DEBUG_PRINTS
+                      uart_size = sprintf((char*) uart_buffer, "Encoder inverted set to %l \r", encoder_inverted);
+                      UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
+                      #endif
+
                       break;
                   case REQUEST_SET_FEEDBACK_PERIOD:
-                      if(hddr.DLC < 2) {
+                      if(hddr.DLC < 3) {
                           // bad frame
                           break;
                       }
+                      // read 16 bit unsigned integer
+                      memcpy(&CAN_outgoing_message_period_ms, &data + 1, 2);
                       break;
                   case REQUEST_NONE:
                   default:
@@ -254,6 +296,8 @@ int main(void)
                       break;
               }
           }
+      } else {
+          CAN_connected = false;
       }
     }
 

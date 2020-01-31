@@ -18,5 +18,4 @@ extern __volatile EncoderStatus encoder_status   ;
 extern void reset_encoder_count(void);
 
 extern EncoderStatus increment_encoder_from_GPIO(bool, bool);
-
 #endif //CANCODER_ENCODER_H

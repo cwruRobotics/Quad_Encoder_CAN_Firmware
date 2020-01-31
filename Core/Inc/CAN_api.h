@@ -19,13 +19,14 @@ extern bool              CAN_connected        ;
 extern HAL_StatusTypeDef CAN_status           ;
 
 // USER CONFIGURABLE VARIABLES
-extern uint32_t CAN_outgoing_message_period_ms;
+extern uint16_t CAN_outgoing_message_period_ms;
 
 // GENERAL API
+extern void read_CAN_id_from_jumpers();
 
 
 // INCOMING FRAME API
-extern void process_incoming_frame(CAN_RxHeaderTypeDef*);
+extern void process_incoming_frame(CAN_RxHeaderTypeDef*, uint8_t*);
 
 extern void process_reset_ticks_request();
 extern void process_set_ticks_request();
