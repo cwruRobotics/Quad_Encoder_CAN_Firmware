@@ -158,7 +158,7 @@ int main(void)
   // read encoder ticks from the eeprom
 
   #ifdef DEBUG_PRINTS
-  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count());
+  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
@@ -213,7 +213,7 @@ int main(void)
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", encoder_count());
+                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", encoder_count);
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
 
@@ -228,11 +228,11 @@ int main(void)
                           break;
                       }
                       // copy desired ticks value to local variable
-                      memcpy_v(encoder_count(), &data + 1, 4);
+                      memcpy_v(&encoder_count, &data + 1, 4);
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_count());
+                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_count);
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
                       break;
@@ -265,7 +265,7 @@ int main(void)
         // fill data in frame
         frame.type = FRAME_TYPE_TICKS;
         frame.error_type = ERROR_TYPE_NONE;
-        frame.ticks = *encoder_count();
+        frame.ticks = encoder_count;
 
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);

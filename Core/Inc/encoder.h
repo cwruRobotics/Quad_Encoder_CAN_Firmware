@@ -10,12 +10,13 @@
 
 #include "types.h"
 
-extern __volatile int32_t * encoder_count(void);
-extern __volatile bool    * encoder_inverted(void);
+extern __volatile int32_t       encoder_count    ;
+extern __volatile double        encoder_velocity ;
+extern __volatile bool          encoder_inverted ;
+extern __volatile EncoderStatus encoder_status   ;
 
-extern            void      reset_encoder_count(void);
+extern void reset_encoder_count(void);
 
 extern EncoderStatus increment_encoder_from_GPIO(bool, bool);
-extern EncoderStatus get_encoder_status(void);
 
 #endif //CANCODER_ENCODER_H

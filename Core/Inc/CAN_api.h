@@ -14,8 +14,6 @@
 #include <stdbool.h>
 
 // VARIABLES
-
-
 extern uint8_t           CAN_id               ;
 extern bool              CAN_connected        ;
 extern HAL_StatusTypeDef CAN_status           ;
