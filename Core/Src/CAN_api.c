@@ -8,10 +8,12 @@
 
 // Define externed variables
 uint8_t           CAN_id                         = 0b00000000 ;
-uint32_t          last_message_sent_ms           = 0          ;
+static uint32_t          last_message_sent_ms           = 0          ;
 bool              CAN_connected                  = false      ;
 HAL_StatusTypeDef CAN_status                     = 0x00       ;
 uint32_t          CAN_outgoing_message_period_ms = 0          ;
+
+const static uint8_t CAN_message_length = 6;
 
 void process_incoming_frame(CAN_RxHeaderTypeDef* frame) {
 

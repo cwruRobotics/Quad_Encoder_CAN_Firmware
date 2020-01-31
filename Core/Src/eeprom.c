@@ -7,6 +7,7 @@
 #include "stm32f1xx_hal.h"
 
 
+
 void I2C_delay() {
     __volatile int v;
     int i;
@@ -14,3 +15,7 @@ void I2C_delay() {
         v;
     }
 }
+
+//bool read_SDA() {
+//    return HAL_GPIO_ReadPin();
+//}

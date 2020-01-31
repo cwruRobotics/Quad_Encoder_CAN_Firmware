@@ -31,6 +31,7 @@
 #include "types.h"
 #include "encoder.h"
 #include "eeprom.h"
+#include "util.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -137,14 +138,14 @@ int main(void)
 
   // get CAN ID from jumpers
   CAN_id = 0b00000000;
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_1_GPIO_Port   ,   CAN_ID_1_Pin ) << 0);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_2_GPIO_Port   ,   CAN_ID_2_Pin ) << 1);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_4_GPIO_Port   ,   CAN_ID_4_Pin ) << 2);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_8_GPIO_Port   ,   CAN_ID_8_Pin ) << 3);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_16_GPIO_Port  ,  CAN_ID_16_Pin ) << 4);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_32_GPIO_Port  ,  CAN_ID_32_Pin ) << 5);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_64_GPIO_Port  ,  CAN_ID_64_Pin ) << 6);
-  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_128_GPIO_Port , CAN_ID_128_Pin ) << 7);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_1_GPIO_Port   ,   CAN_ID_1_Pin   ) << 0u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_2_GPIO_Port   ,   CAN_ID_2_Pin   ) << 1u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_4_GPIO_Port   ,   CAN_ID_4_Pin   ) << 2u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_8_GPIO_Port   ,   CAN_ID_8_Pin   ) << 3u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_16_GPIO_Port  ,   CAN_ID_16_Pin  ) << 4u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_32_GPIO_Port  ,   CAN_ID_32_Pin  ) << 5u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_64_GPIO_Port  ,   CAN_ID_64_Pin  ) << 6u);
+  CAN_id += (HAL_GPIO_ReadPin(CAN_ID_128_GPIO_Port ,   CAN_ID_128_Pin ) << 7u);
 
   // transmit CAN ID for debug
   #ifdef DEBUG_PRINTS
@@ -157,7 +158,7 @@ int main(void)
   // read encoder ticks from the eeprom
 
   #ifdef DEBUG_PRINTS
-  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", get_encoder_count());
+  uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count());
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
@@ -212,7 +213,7 @@ int main(void)
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", get_encoder_count());
+                      uart_size = sprintf((char *) uart_buffer, "Encoder ticks set to %l", encoder_count());
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
 
@@ -227,15 +228,11 @@ int main(void)
                           break;
                       }
                       // copy desired ticks value to local variable
-
-                      // will this work
-                      void* buffer;
-                      memcpy(&buffer, &data + 1, 4); // this throws a warning, how bad is such warning?
-                      set_encoder_count((int32_t) buffer);
+                      memcpy_v(encoder_count(), &data + 1, 4);
 
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
-                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", get_encoder_count());
+                      uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_count());
                       UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
                       #endif
                       break;
@@ -268,7 +265,7 @@ int main(void)
         // fill data in frame
         frame.type = FRAME_TYPE_TICKS;
         frame.error_type = ERROR_TYPE_NONE;
-        frame.ticks = get_encoder_count();
+        frame.ticks = *encoder_count();
 
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
@@ -536,6 +533,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
       bool a_high = HAL_GPIO_ReadPin(ENC_A_GPIO_Port, ENC_A_Pin);
       bool b_high = HAL_GPIO_ReadPin(ENC_B_GPIO_Port, ENC_B_Pin);
       increment_encoder_from_GPIO(a_high, b_high);
+      HAL_GPIO_TogglePin(Encoder_LED_GPIO_Port, Encoder_LED_Pin);
   } else if (GPIO_Pin == ENC_X_Pin) {
     // figure out what this does and why we need it
   }
