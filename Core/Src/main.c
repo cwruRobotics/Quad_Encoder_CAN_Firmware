@@ -158,42 +158,42 @@ int main(void)
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
-    {
-        GPIO_InitTypeDef initTypeDef;
-        #if(ENCODING == 1)
-            initTypeDef.Pin =  ENC_A_Pin;
-            initTypeDef.Mode = GPIO_MODE_IT_RISING;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
+  {
+    GPIO_InitTypeDef initTypeDef;
+    #if(ENCODING == 1)
+        initTypeDef.Pin =  ENC_A_Pin;
+        initTypeDef.Mode = GPIO_MODE_IT_RISING;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
 
-            initTypeDef.Pin =  ENC_B_Pin;
-            initTypeDef.Mode = GPIO_MODE_INPUT;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
-        #elif(ENCODING == 2)
-            initTypeDef.Pin = ENC_A_Pin;
-            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
+        initTypeDef.Pin =  ENC_B_Pin;
+        initTypeDef.Mode = GPIO_MODE_INPUT;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+    #elif(ENCODING == 2)
+        initTypeDef.Pin = ENC_A_Pin;
+        initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
 
-            initTypeDef.Pin = ENC_B_Pin;
-            initTypeDef.Mode = GPIO_MODE_INPUT;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
-        #elif(ENCODING == 4)
-            initTypeDef.Pin =  ENC_A_Pin;
-            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
+        initTypeDef.Pin = ENC_B_Pin;
+        initTypeDef.Mode = GPIO_MODE_INPUT;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+    #elif(ENCODING == 4)
+        initTypeDef.Pin =  ENC_A_Pin;
+        initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_A_GPIO_Port, &initTypeDef);
 
-            initTypeDef.Pin =  ENC_B_Pin;
-            initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
-            initTypeDef.Pull = GPIO_PULLDOWN;
-            HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
-            #else
-            #error
-        #endif
-    }
+        initTypeDef.Pin =  ENC_B_Pin;
+        initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
+        initTypeDef.Pull = GPIO_PULLDOWN;
+        HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
+        #else
+        #error
+    #endif
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -206,6 +206,7 @@ int main(void)
 
     // first, check if power is ok
     bool power_ok = !HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
+    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, power_ok);
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
@@ -296,8 +297,6 @@ int main(void)
                       break;
               }
           }
-      } else {
-          CAN_connected = false;
       }
     }
 
@@ -313,21 +312,25 @@ int main(void)
 
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
+//        HAL_GPIO_TogglePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin);
+        HAL_GPIO_WritePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin, can_frame_available);
     }
+
+//      if(CAN_connected) {
+//          HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
+//      } else {
+//          HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET);
+//      }
 
 
     // if can bus is working, turn the can traffic light on
-    if(CAN_connected) {
-        HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
-    } else {
-        HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET);
-    }
+
 
     // this is just for making sure it's on for
-//    HAL_GPIO_WritePin(GPIOA, EEPROM_LED_Pin, GPIO_PIN_SET);
-    HAL_GPIO_TogglePin(GPIOA, EEPROM_LED_Pin);
+//    HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
 
-    // delay for 200 ms, replace this later with a timer of some sort?
+
+      // delay for 200 ms, replace this later with a timer of some sort?
 //    HAL_Delay(LOOP_SLEEP_TIME);
   }
   /* USER CODE END 3 */

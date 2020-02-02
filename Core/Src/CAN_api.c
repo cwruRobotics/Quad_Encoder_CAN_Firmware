@@ -11,13 +11,7 @@ uint8_t           CAN_id                         = 0b00000000 ;
 static uint32_t          last_message_sent_ms           = 0          ;
 bool              CAN_connected                  = false      ;
 HAL_StatusTypeDef CAN_status                     = 0x00       ;
-uint16_t          CAN_outgoing_message_period_ms = 0          ;
-
-const static uint8_t CAN_message_length = 6;
-
-void process_incoming_frame(CAN_RxHeaderTypeDef* frame, uint8_t* data) {
-//    if(frame->)
-}
+uint16_t          CAN_outgoing_message_period_ms = 200         ; // 50 hz
 
 bool CAN_should_update(uint32_t current_time_ms) {
     bool ret = (current_time_ms - last_message_sent_ms) > CAN_outgoing_message_period_ms;
@@ -47,5 +41,5 @@ bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id) {
     memcpy(data + 2, &(frame->ticks), 4); // should we still send this if there is an error?
 
     // send the message and check for error
-    return HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox) == HAL_OK;
+    return (HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox) == HAL_OK);
 }
