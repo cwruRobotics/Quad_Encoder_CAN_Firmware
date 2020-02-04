@@ -205,7 +205,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     // first, check if power is ok
-    bool power_ok = !HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
+    bool power_ok = HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
     HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, power_ok);
 
     // if it's not ok, freak out and save ticks to EEPROM
@@ -313,25 +313,11 @@ int main(void)
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
 //        HAL_GPIO_TogglePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin);
-        HAL_GPIO_WritePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin, can_frame_available);
+        HAL_GPIO_WritePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin, can_send_success);
     }
 
-//      if(CAN_connected) {
-//          HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
-//      } else {
-//          HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET);
-//      }
 
 
-    // if can bus is working, turn the can traffic light on
-
-
-    // this is just for making sure it's on for
-//    HAL_GPIO_WritePin(GPIOA, CAN_TRAFFIC_LED_Pin, GPIO_PIN_SET);
-
-
-      // delay for 200 ms, replace this later with a timer of some sort?
-//    HAL_Delay(LOOP_SLEEP_TIME);
   }
   /* USER CODE END 3 */
 }
@@ -397,10 +383,10 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 16;
+  hcan.Init.Prescaler = 9;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_2TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;

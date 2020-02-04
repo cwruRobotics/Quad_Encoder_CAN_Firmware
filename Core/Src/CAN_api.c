@@ -11,7 +11,7 @@ uint8_t           CAN_id                         = 0b00000000 ;
 static uint32_t          last_message_sent_ms           = 0          ;
 bool              CAN_connected                  = false      ;
 HAL_StatusTypeDef CAN_status                     = 0x00       ;
-uint16_t          CAN_outgoing_message_period_ms = 200         ; // 50 hz
+uint16_t          CAN_outgoing_message_period_ms = 200         ; // 5 hz
 
 bool CAN_should_update(uint32_t current_time_ms) {
     bool ret = (current_time_ms - last_message_sent_ms) > CAN_outgoing_message_period_ms;
@@ -20,14 +20,14 @@ bool CAN_should_update(uint32_t current_time_ms) {
 }
 
 bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id) {
-    static const uint8_t message_length = 6; // we could possibly change this as needed. But do we need to?
+    static const uint8_t message_length = 8; // we could possibly change this as needed. But do we need to?
     // initialize stuff
     CAN_TxHeaderTypeDef hddr;
     uint32_t mailbox;
     uint8_t data[message_length];
 
     // set all data to 0
-    memset(&data, 0, sizeof(data));
+    memset(&data, 0, message_length);
 
     // configure CAN message
     hddr.StdId = id;
@@ -40,6 +40,7 @@ bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id) {
     data[1] = frame->error_type;
     memcpy(data + 2, &(frame->ticks), 4); // should we still send this if there is an error?
 
+    HAL_StatusTypeDef retval = HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox);
     // send the message and check for error
-    return (HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox) == HAL_OK);
+    return (retval == HAL_OK);
 }
