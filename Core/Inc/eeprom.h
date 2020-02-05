@@ -18,7 +18,7 @@
 #define MIN_MEMORY_LOCATION 0   // bytes
 #define MAX_MEMORY_LOCATION 127 // bytes
 
-// defined in the data sheet
+// defined in the data sheet (last bit determines read or write)
 #define WRITE_BYTE 0b10101110
 #define READ_BYTE  0b10101111
 

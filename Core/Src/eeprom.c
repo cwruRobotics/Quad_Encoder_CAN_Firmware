@@ -194,6 +194,7 @@ void i2c_receive_byte(uint8_t address, uint8_t* ret) {
         if(i2c_write_byte(address, false, false)) {
             // recieve
             *ret = i2c_read_byte(false, true);
+            return;
         }
     }
     *ret = 0;
