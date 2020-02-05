@@ -221,7 +221,7 @@ int main(void)
         initTypeDef.Mode = GPIO_MODE_IT_RISING_FALLING;
         initTypeDef.Pull = GPIO_PULLDOWN;
         HAL_GPIO_Init(ENC_B_GPIO_Port, &initTypeDef);
-        #else
+    #else
         #error
     #endif
   }
@@ -241,11 +241,12 @@ int main(void)
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
-        // disable irq to not waste cpu cycles on encoder counts
-        __disable_irq();
-
-        // freak out
-        if(!already_panicked) panic();
+        // freak out if we haven't already
+        if(!already_panicked) {
+            // disable irq so we dont waste cpu cycles or mess up i2c timing
+            __disable_irq();
+            panic();
+        }
 
         // set this to prevent panic running again
         already_panicked = true;

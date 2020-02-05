@@ -82,9 +82,9 @@ void i2c_start_condition() {
         }
         I2C_delay();
     }
-    if(!read_SDA()) {
-        arbitration_lost();
-    }
+//    if(!read_SDA()) {
+//        arbitration_lost();
+//    }
     set_SDA(LOW);
     I2C_delay();
     set_SCL(LOW);
@@ -101,9 +101,9 @@ void i2c_stop_condition() {
     I2C_delay();
     set_SDA(HIGH);
     I2C_delay();
-    if(!read_SDA()) {
-        arbitration_lost();
-    }
+//    if(!read_SDA()) {
+//        arbitration_lost();
+//    }
     started = false;
 }
 
@@ -177,7 +177,7 @@ uint8_t i2c_read_byte(bool nack, bool stop) {
 
 bool i2c_send_byte(uint8_t address, uint8_t data) {
     // send control byte
-    if(i2c_write_byte(WRITE_BYTE, true, false)) {
+    if(i2c_write_byte(WRITE_CONTROL_BYTE, true, false)) {
         // send address
         if(i2c_write_byte(address, false, false)) {
             // write data
@@ -187,28 +187,44 @@ bool i2c_send_byte(uint8_t address, uint8_t data) {
     return false;
 }
 
+bool i2c_send_continuous_bytes(uint8_t address, uint8_t* data, size_t size) {
+    bool ret = true;
+    size_t i;
+    for(i = 0; i < size; i++) {
+        ret &= i2c_send_byte(address + i, data[i]);
+    }
+    return ret;
+}
+
 void i2c_receive_byte(uint8_t address, uint8_t* ret) {
     // send control byte
-    if(i2c_write_byte(READ_BYTE, true, false)) {
+    if(i2c_write_byte(WRITE_CONTROL_BYTE, true, false)) {
         // send address byte
         if(i2c_write_byte(address, false, false)) {
-            // recieve
-            *ret = i2c_read_byte(false, true);
-            return;
+            // send start bit read control byte
+            if(i2c_write_byte(READ_CONTROL_BYTE, true, false)) {
+                // receive bye
+                *ret = i2c_read_byte(false, true);
+                return;
+            }
         }
     }
     *ret = 0;
 }
 
 void i2c_receive_continuous_bytes(uint8_t address, uint8_t* buffer, size_t size) {
-    if(i2c_write_byte(READ_BYTE, true, false)) {
+    // send write control byte
+    if(i2c_write_byte(WRITE_CONTROL_BYTE, true, false)) {
         // send address byte
         if(i2c_write_byte(address, false, false)) {
-            // read requested number of bytes
-            size_t i;
-            const size_t end = size - 1;
-            for(i = 0; i < size; i++) {
-                buffer[i] = i2c_read_byte((i != end), (i == end));
+            // send start condition and read control byte
+            if(i2c_write_byte(READ_CONTROL_BYTE, true, false)) {
+                // read desired number of bytes
+                size_t i;
+                const size_t end = size - 1;
+                for(i = 0; i < size; i++) {
+                    buffer[i] = i2c_read_byte((i != end), (i == end));
+                }
             }
         }
     }
