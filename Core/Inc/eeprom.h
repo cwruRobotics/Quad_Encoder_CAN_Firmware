@@ -32,12 +32,9 @@ extern void i2c_start_condition();
 extern void i2c_stop_condition();
 
 // read and write functions
-
 extern bool i2c_send_byte(uint8_t address, uint8_t data);
-extern uint8_t i2c_receive_byte(uint8_t address);
-
-extern bool  i2c_send_type(uint8_t address, void* data, size_t data_size);
-extern void* i2c_receive_type(uint8_t address, size_t data_size);
+extern void i2c_receive_byte(uint8_t address, uint8_t* ret);
+extern void i2c_receive_continuous_bytes(uint8_t address, uint8_t* buffer, size_t size);
 
 // probably shouldn't use these directly
 extern void i2c_write_bit(bool bit);

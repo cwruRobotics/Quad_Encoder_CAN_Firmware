@@ -157,23 +157,33 @@ int main(void)
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
+  // declare buffer for reading EEPROM values (4 bytes wide)
+  const uint8_t eeprom_buffer_length = 4;
+  uint8_t buffer[eeprom_buffer_length];
+  memset(buffer, 0, eeprom_buffer_length);
+
   // disable interrupts while reading eeprom to ensure correct timing
   __disable_irq();
 
-  // read encoder
-  i2c_receive_byte(ENCODER_TICKS_LOCATION);
-  i2c_receive_byte(ENCODER_TICKS_LOCATION + 1);
-  i2c_receive_byte(ENCODER_TICKS_LOCATION + 2);
-  i2c_receive_byte(ENCODER_TICKS_LOCATION + 3);
+  // TODO(Ben): Does the byte order need to be reversed when reading from EEPROM?
 
-  // read settings from eeprom
+  // read encoder ticks
+  i2c_receive_continuous_bytes(ENCODER_TICKS_LOCATION, buffer, 4);
+  memcpy_v(&encoder_count, buffer, 4);
 
-  // read encoder ticks from the eeprom
+  // read encoder polarity
+  i2c_receive_byte(ENCODER_POLARITY_LOCATION, buffer);
+  memcpy_v(&encoder_inverted, buffer, 1);
 
-  //stop i2c bus
-    i2c_stop_condition();
+  // read encoder feedback period
+  i2c_receive_continuous_bytes(FEEDBACK_PERIOD_LOCATION, buffer, 2);
+  memcpy_v(&CAN_outgoing_message_period_ms, buffer, 2);
+
   // reenable interrupts
   __enable_irq();
+
+  // free the read buffer
+  free(buffer);
 
   #ifdef DEBUG_PRINTS
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);

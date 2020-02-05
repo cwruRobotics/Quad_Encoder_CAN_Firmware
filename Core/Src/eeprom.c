@@ -187,11 +187,29 @@ bool i2c_send_byte(uint8_t address, uint8_t data) {
     return false;
 }
 
-uint8_t i2c_receive_byte(uint8_t address) {
+void i2c_receive_byte(uint8_t address, uint8_t* ret) {
     // send control byte
     if(i2c_write_byte(READ_BYTE, true, false)) {
-
+        // send address byte
+        if(i2c_write_byte(address, false, false)) {
+            // recieve
+            *ret = i2c_read_byte(false, true);
+        }
     }
-    return 0;
+    *ret = 0;
+}
+
+void i2c_receive_continuous_bytes(uint8_t address, uint8_t* buffer, size_t size) {
+    if(i2c_write_byte(READ_BYTE, true, false)) {
+        // send address byte
+        if(i2c_write_byte(address, false, false)) {
+            // read requested number of bytes
+            size_t i;
+            const size_t end = size - 1;
+            for(i = 0; i < size; i++) {
+                buffer[i] = i2c_read_byte((i != end), (i == end));
+            }
+        }
+    }
 }
 
