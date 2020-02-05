@@ -6,22 +6,43 @@
 #define CANCODER_EEPROM_H
 
 #include <stdbool.h>
+#include <inttypes.h>
+#include <sched.h>
 
-extern void I2C_delay();
-extern void arbitration_lost();
 
-extern void set_SDA_high();
-extern void set_SDA_low();
-extern void set_SCL_high();
-extern void set_SCL_low();
-extern bool read_SDA();
-extern bool read_SCL();
+// references
+// https://calcium3000.wordpress.com/2016/08/19/i2c-bit-banging-tutorial-part-i/
+// http://ww1.microchip.com/downloads/en/DeviceDoc/24AA0-24LC01B-24FC01-Data-Sheet-20001711L.pdf
 
-extern void i2c_start_cond();
-extern void i2c_stop_cond();
+// constants
+#define MIN_MEMORY_LOCATION 0   // bytes
+#define MAX_MEMORY_LOCATION 127 // bytes
+
+// defined in the data sheet
+#define WRITE_BYTE 0b10101110
+#define READ_BYTE  0b10101111
+
+// memory addresses
+#define ENCODER_TICKS_LOCATION    0x00 // 4 bytes wide
+#define ENCODER_POLARITY_LOCATION 0x04 // 1 bytes wide
+#define FEEDBACK_PERIOD_LOCATION  0x05 // 2 bytes wide
+
+// public function definitions
+extern void i2c_start_condition();
+extern void i2c_stop_condition();
+
+// read and write functions
+
+extern bool i2c_send_byte(uint8_t address, uint8_t data);
+extern uint8_t i2c_receive_byte(uint8_t address);
+
+extern bool  i2c_send_type(uint8_t address, void* data, size_t data_size);
+extern void* i2c_receive_type(uint8_t address, size_t data_size);
+
+// probably shouldn't use these directly
 extern void i2c_write_bit(bool bit);
 extern bool i2c_read_bit();
-extern bool i2c_write_byte(bool send_start, bool send_stop, unsigned char byte);
-extern unsigned char i2c_read_byte(bool nack, bool send_stop);
+extern bool i2c_write_byte(uint8_t byte, bool start, bool stop);
+extern uint8_t i2c_read_byte(bool nack, bool stop);
 
 #endif //CANCODER_EEPROM_H

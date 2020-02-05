@@ -4,16 +4,37 @@
 
 #include "eeprom.h"
 
+#include "util.h"
+
 #include "stm32f1xx_hal.h"
 #include "main.h"
 
-#define I2C_SPEED 100
-#define I2C_DELAY 1 //ms
+#include <stdlib.h>
 
-// VARIABLES
+#define FANCY_US_DELAY
+
+#define I2C_SPEED 100
+#define I2C_DELAY_US 4 // us
+
+#define HIGH 1
+#define LOW  0
+
+
+// PRIVATE VARIABLES
 static bool started = false;
 
+// private function declarations
+static void I2C_delay();
+static void arbitration_lost();
 
+static void set_SDA(bool high);
+static void set_SCL(bool high);
+static bool read_SDA();
+static bool read_SCL();
+
+// function definitions
+
+#ifndef FANCY_US_DELAY
 void I2C_delay() {
     __volatile int v;
     int i;
@@ -21,67 +42,64 @@ void I2C_delay() {
         v;
     }
 }
+#else
+void I2C_delay() {
+    DWT_Delay(I2C_DELAY_US);
+}
+#endif
 
 void arbitration_lost() {
     // what do we want this to do
+    // is this bad? probably
 }
 
-void set_SDA_low() {
-    HAL_GPIO_WritePin(MEM_SDA_GPIO_Port, MEM_SDA_Pin, GPIO_PIN_RESET);
-}
-
-void set_SDA_high() {
-    HAL_GPIO_WritePin(MEM_SDA_GPIO_Port, MEM_SDA_Pin, GPIO_PIN_SET);
+void set_SDA(bool high) {
+    HAL_GPIO_WritePin(MEM_SDA_GPIO_Port, MEM_SDA_Pin, high);
 }
 
 bool read_SDA() {
-    return false;
+    return HAL_GPIO_ReadPin(MEM_SDA_GPIO_Port, MEM_SDA_Pin);
 }
 
-void set_SCL_low() {
-    HAL_GPIO_WritePin(MEM_SCL_GPIO_Port, MEM_SCL_Pin, GPIO_PIN_RESET);
-}
-
-void set_SCL_high() {
-    HAL_GPIO_WritePin(MEM_SCL_GPIO_Port, MEM_SCL_Pin, GPIO_PIN_SET);
+void set_SCL(bool high) {
+    HAL_GPIO_WritePin(MEM_SCL_GPIO_Port, MEM_SCL_Pin, high);
 }
 
 bool read_SCL() {
-    return false;
+    return HAL_GPIO_ReadPin(MEM_SCL_GPIO_Port, MEM_SCL_Pin);
 }
 
 
-void i2c_start_cond() {
+void i2c_start_condition() {
     if(started) {
-        set_SDA_high();
+        set_SDA(HIGH);
         I2C_delay();
-        set_SCL_high();
+        set_SCL(HIGH);
         while(!read_SCL()) {
             // some sort of delay
-            // well try 1 ms for now
-            HAL_Delay(1);
+            // well try 2 us
+            DWT_Delay(2);
         }
         I2C_delay();
     }
     if(!read_SDA()) {
         arbitration_lost();
     }
-    set_SDA_low();
+    set_SDA(LOW);
     I2C_delay();
-    set_SCL_low();
+    set_SCL(LOW);
     started = true;
 }
 
-void i2c_stop_cond() {
-    set_SDA_low();
+void i2c_stop_condition() {
+    set_SDA(LOW);
     I2C_delay();
-    set_SCL_high();
-
+    set_SCL(HIGH);
     while(!read_SCL()) {
-        HAL_Delay(1);
+        DWT_Delay(2);
     }
     I2C_delay();
-    set_SDA_high();
+    set_SDA(HIGH);
     I2C_delay();
     if(!read_SDA()) {
         arbitration_lost();
@@ -91,71 +109,89 @@ void i2c_stop_cond() {
 
 void i2c_write_bit(bool bit) {
     if(bit) {
-        set_SDA_high();
+        set_SDA(HIGH);
     } else {
-        set_SDA_low();
+        set_SDA(LOW);
     }
     I2C_delay();
-    set_SCL_high();
+    set_SCL(HIGH);
     I2C_delay();
     while(!read_SCL()) {
-        HAL_Delay(1);
+        DWT_Delay(2);
     }
 
-    if(bit && !read_SDA()) {
-        arbitration_lost();
-    }
+//    if(bit && !read_SDA()) {
+//        arbitration_lost();
+//    }
 
-    set_SCL_low();
+    set_SCL(LOW);
 }
 
 
 bool i2c_read_bit() {
     bool bit;
-    set_SDA_high();
+    set_SDA(HIGH);
     I2C_delay();
-    set_SCL_high();
+    set_SCL(HIGH);
 
     while(!read_SCL()) {
-        HAL_Delay(1);
+        DWT_Delay(2);
     }
     I2C_delay();
     bit = read_SDA();
-    set_SCL_low();
+    set_SCL(LOW);
     return bit;
 }
 
 
-bool i2c_write_byte(bool send_start, bool send_stop, unsigned char byte) {
-    unsigned bit;
+bool i2c_write_byte(uint8_t byte, bool start, bool stop) {
+    uint8_t bit;
     bool nack;
 
-    if(send_start) {
-        i2c_start_cond();
-    }
+    if(start) i2c_start_condition();
+
     for(bit = 0; bit < 8;++bit) {
         i2c_write_bit((byte & 0x80) != 0);
         byte <<= 1;
     }
     nack = i2c_read_bit();
-    if(send_stop) {
-        i2c_stop_cond();
-    }
+
+    if(stop) i2c_stop_condition();
+
     return nack;
 }
 
-unsigned char i2c_read_byte(bool nack, bool send_stop) {
-    unsigned char byte = 0;
-    unsigned char bit;
+uint8_t i2c_read_byte(bool nack, bool stop) {
+    uint8_t byte = 0;
+    uint8_t bit;
 
     for(bit = 0; bit < 8; ++bit) {
         byte = (byte << 1) | i2c_read_bit();
     }
     i2c_write_bit(nack);
-    if(send_stop) {
-        i2c_stop_cond();
-    }
+
+    if(stop) i2c_stop_condition();
+
     return byte;
 }
 
+bool i2c_send_byte(uint8_t address, uint8_t data) {
+    // send control byte
+    if(i2c_write_byte(WRITE_BYTE, true, false)) {
+        // send address
+        if(i2c_write_byte(address, false, false)) {
+            // write data
+            if(i2c_write_byte(data, false, true)) return true;
+        }
+    }
+    return false;
+}
+
+uint8_t i2c_receive_byte(uint8_t address) {
+    // send control byte
+    if(i2c_write_byte(READ_BYTE, true, false)) {
+
+    }
+    return 0;
+}
 

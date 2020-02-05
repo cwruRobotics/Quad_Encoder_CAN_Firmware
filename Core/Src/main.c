@@ -69,6 +69,7 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 uint32_t current_time_ms;
+bool already_panicked;
 
 uint32_t uart_size;
 uint8_t uart_buffer[UART_BUFFER_SIZE] = {};
@@ -83,6 +84,7 @@ static void MX_CAN_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
+void panic();
 void debug(UART_HandleTypeDef* huart, char* message);
 /* USER CODE END PFP */
 
@@ -124,7 +126,12 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  // do we care about x?
+
+  // enable microsecond delays
+  DWT_Init();
+
+  // set already_panicked to false
+  already_panicked = false;
 
   // start CAN
   CAN_status = HAL_CAN_Start(&hcan);
@@ -150,9 +157,23 @@ int main(void)
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
   #endif
 
+  // disable interrupts while reading eeprom to ensure correct timing
+  __disable_irq();
+
+  // read encoder
+  i2c_receive_byte(ENCODER_TICKS_LOCATION);
+  i2c_receive_byte(ENCODER_TICKS_LOCATION + 1);
+  i2c_receive_byte(ENCODER_TICKS_LOCATION + 2);
+  i2c_receive_byte(ENCODER_TICKS_LOCATION + 3);
+
   // read settings from eeprom
 
   // read encoder ticks from the eeprom
+
+  //stop i2c bus
+    i2c_stop_condition();
+  // reenable interrupts
+  __enable_irq();
 
   #ifdef DEBUG_PRINTS
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
@@ -210,9 +231,23 @@ int main(void)
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
-        DEBUG("Damn that's tuff... Power low.");
-        //TODO(Ben): Save to EEPROM
-        continue; // not sure if this is the right move
+        // disable irq to not waste cpu cycles on encoder counts
+        __disable_irq();
+
+        // freak out
+        if(!already_panicked) panic();
+
+        // set this to prevent panic running again
+        already_panicked = true;
+
+        // wait for impending doom
+        continue;
+    } else {
+        // reenable irq
+        __enable_irq();
+
+        // set this here just in case we're on the brink of death but come back
+        already_panicked = false;
     }
 
     // get current time
@@ -550,6 +585,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+// Called when power to the module drops. Save settings and encoder ticks
+void panic() {
+
+
+    // save stuff to EEPROM
+}
+
 void debug(UART_HandleTypeDef* huart, char* message) {
     char c;
     uint16_t len = 0;
