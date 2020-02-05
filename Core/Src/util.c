@@ -54,6 +54,17 @@ uint16_t switch_endian_u16(uint16_t x) {
     return res;
 }
 
+int16_t switch_endian_i16(int16_t x ) {
+    int16_t b0, b1;
+    int16_t res;
+
+    b0 = (x & 0x00FF) << 8;
+    b1 = (x & 0xFF00) >> 8;
+
+    res = b0 | b1;
+    return res;
+}
+
 void DWT_Init(void) {
     if(!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) {
         CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
