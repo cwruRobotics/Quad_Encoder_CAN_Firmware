@@ -32,15 +32,15 @@ extern void i2c_start_condition ();
 extern void i2c_stop_condition  ();
 
 // read and write functions
-extern bool i2c_send_byte                (uint8_t address, uint8_t  data                 );
-extern bool i2c_send_continuous_bytes    (uint8_t address, uint8_t* data   , size_t size );
-extern void i2c_receive_byte             (uint8_t address, uint8_t* ret                  );
-extern void i2c_receive_continuous_bytes (uint8_t address, uint8_t* buffer , size_t size );
+extern bool i2c_send_byte                (uint8_t address , uint8_t  data                 );
+extern bool i2c_send_continuous_bytes    (uint8_t address , uint8_t* data   , size_t size );
+extern void i2c_receive_byte             (uint8_t address , uint8_t* ret                  );
+extern void i2c_receive_continuous_bytes (uint8_t address , uint8_t* buffer , size_t size );
 
 // probably shouldn't use these directly
-extern void i2c_write_bit    (bool bit);
-extern bool i2c_read_bit     ();
-extern bool i2c_write_byte   (uint8_t byte, bool start, bool stop);
-extern uint8_t i2c_read_byte (bool nack, bool stop);
+extern void i2c_write_bit    (bool bit );
+extern bool i2c_read_bit     (         );
+extern bool i2c_write_byte   (uint8_t byte , bool start, bool stop );
+extern uint8_t i2c_read_byte (bool    nack ,             bool stop );
 
 #endif //CANCODER_EEPROM_H
