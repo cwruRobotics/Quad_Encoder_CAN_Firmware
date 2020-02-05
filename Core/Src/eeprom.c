@@ -54,7 +54,7 @@ void arbitration_lost() {
 }
 
 void set_SDA(bool high) {
-    HAL_GPIO_WritePin(MEM_SDA_GPIO_Port, MEM_SDA_Pin, high);
+    HAL_GPIO_WritePin(MEM_SDA_GPIO_Port   , MEM_SDA_Pin   , high);
 }
 
 bool read_SDA() {
@@ -71,6 +71,7 @@ bool read_SCL() {
 
 
 void i2c_start_condition() {
+    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, GPIO_PIN_SET);
     if(started) {
         set_SDA(HIGH);
         I2C_delay();
@@ -92,6 +93,7 @@ void i2c_start_condition() {
 }
 
 void i2c_stop_condition() {
+    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, GPIO_PIN_RESET);
     set_SDA(LOW);
     I2C_delay();
     set_SCL(HIGH);

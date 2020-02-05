@@ -8,6 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// macros
+#define STR(x) #x
+#define XSTR(x) STR(x)
+
 // memcpy for volatile memory
 extern __volatile void* memcpy_v(__volatile void *restrict, const __volatile void *restrict, size_t);
 

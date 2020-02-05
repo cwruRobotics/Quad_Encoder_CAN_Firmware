@@ -25,7 +25,6 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 
 #include "CAN_api.h"
@@ -47,7 +46,9 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+#define NO_5V5
 #define ENCODING 2
+#pragma message("Using encoding: X" XSTR(ENCODING))
 
 #define UART_PRINT_TIMEOUT 200 // ms
 #define UART_BUFFER_SIZE 1024
@@ -182,9 +183,6 @@ int main(void)
   // reenable interrupts
   __enable_irq();
 
-  // free the read buffer
-  free(buffer);
-
   #ifdef DEBUG_PRINTS
   uart_size = sprintf((char*) uart_buffer, "Starting up with %l ticks \t", encoder_count);
   UART_status = HAL_UART_Transmit(&huart1, uart_buffer, uart_size, UART_PRINT_TIMEOUT);
@@ -236,8 +234,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
     // first, check if power is ok
-    bool power_ok = HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
-    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, power_ok);
+    bool power_ok;
+    #ifndef NO_5V5
+        power_ok = HAL_GPIO_ReadPin(POWER_SENSE_GPIO_Port, POWER_SENSE_Pin);
+    #else
+        power_ok = true;
+    #endif
+//    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, power_ok);
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
@@ -273,12 +276,10 @@ int main(void)
 
       // get data from message
       CAN_status = HAL_CAN_GetRxMessage(&hcan, CAN_RX_FIFO0, &hddr, data);
+      CAN_connected = true;
 
       // read messages
       if(CAN_status == HAL_OK && hddr.RTR == CAN_RTR_REMOTE && hddr.StdId == CAN_id) {
-          // since we are receiving messages, set can traffic led to on.
-          CAN_connected = true;
-
           // check if message is less than 2 bytes long because bad
           if(hddr.DLC < 1) {
               // not an error, but we won't do anything about it
@@ -358,8 +359,10 @@ int main(void)
 
         // send the can frame with ticks in it
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
-//        HAL_GPIO_TogglePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin);
-        HAL_GPIO_WritePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin, can_send_success);
+        HAL_GPIO_WritePin(
+          CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin,
+          (can_send_success && CAN_connected)
+        );
     }
 
 
@@ -599,9 +602,22 @@ static void MX_GPIO_Init(void)
 
 // Called when power to the module drops. Save settings and encoder ticks
 void panic() {
-
+    // turn off leds
+    HAL_GPIO_WritePin(CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin, GPIO_PIN_RESET );
+    HAL_GPIO_WritePin(Encoder_LED_GPIO_Port    , Encoder_LED_Pin    , GPIO_PIN_RESET );
+    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port     , EEPROM_LED_Pin     , GPIO_PIN_RESET );
 
     // save stuff to EEPROM
+    uint8_t buffer[4];
+    memset(buffer, 0, 4);
+    memcpy_v(buffer, &encoder_count, 4);
+    i2c_send_continuous_bytes(ENCODER_TICKS_LOCATION, buffer, 4);
+
+    memset(buffer, 0, 4);
+    memcpy_v(buffer, &encoder_inverted, 2);
+    i2c_send_continuous_bytes(ENCODER_POLARITY_LOCATION, buffer, 2);
+
+    i2c_send_byte(FEEDBACK_PERIOD_LOCATION, encoder_inverted);
 }
 
 void debug(UART_HandleTypeDef* huart, char* message) {
