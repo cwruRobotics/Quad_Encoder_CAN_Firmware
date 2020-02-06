@@ -6,16 +6,19 @@
 
 #include <string.h>
 
-// Define externed variables
+// PUBLIC VARS
 uint8_t           CAN_id                         = 0b00000000 ;
-static uint32_t          last_message_sent_ms           = 0          ;
 bool              CAN_connected                  = false      ;
 HAL_StatusTypeDef CAN_status                     = 0x00       ;
-uint16_t          CAN_outgoing_message_period_ms = 200         ; // 5 hz
+uint16_t          CAN_outgoing_message_period_ms = 200        ;
 
+// PRIVATE VARS
+static uint32_t   _last_message_sent_ms          = 0          ;
+
+// FUNCTION DEFINITIONS
 bool CAN_should_update(uint32_t current_time_ms) {
-    bool ret = (current_time_ms - last_message_sent_ms) > CAN_outgoing_message_period_ms;
-    if(ret) last_message_sent_ms = current_time_ms;
+    bool ret = (current_time_ms - _last_message_sent_ms) > CAN_outgoing_message_period_ms;
+    if(ret) _last_message_sent_ms = current_time_ms;
     return ret;
 }
 
