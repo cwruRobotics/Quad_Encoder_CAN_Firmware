@@ -46,7 +46,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define NO_5V5
+//#define NO_5V5
 #define ENCODING 2
 #pragma message("Using encoding: X" XSTR(ENCODING))
 
