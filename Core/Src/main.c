@@ -53,7 +53,7 @@
 #define UART_PRINT_TIMEOUT 200 // ms
 #define UART_BUFFER_SIZE 1024
 
-#define DEBUG_PRINTS
+//#define DEBUG_PRINTS
 #ifdef DEBUG_PRINTS
 #define DEBUG(message) debug(&huart1, message)
 #else
@@ -178,7 +178,7 @@ int main(void)
 
   // read encoder feedback period
   i2c_receive_continuous_bytes(FEEDBACK_PERIOD_LOCATION, buffer, 2);
-  memcpy_v(&CAN_outgoing_message_period_ms, buffer, 2);
+//  memcpy_v(&CAN_outgoing_message_period_ms, buffer, 2);
 
   // reenable interrupts
   __enable_irq();
@@ -233,6 +233,11 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+//    __disable_irq();
+//    i2c_receive_continuous_bytes(ENCODER_TICKS_LOCATION, buffer, 4);
+//    memcpy_v(&encoder_count, buffer, 4);
+//    __enable_irq();
+
     // first, check if power is ok
     bool power_ok;
     #ifndef NO_5V5
@@ -240,7 +245,6 @@ int main(void)
     #else
         power_ok = true;
     #endif
-//    HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, power_ok);
 
     // if it's not ok, freak out and save ticks to EEPROM
     if(!power_ok) {
@@ -279,9 +283,10 @@ int main(void)
       CAN_connected = true;
 
       // read messages
-      if(CAN_status == HAL_OK && hddr.RTR == CAN_RTR_REMOTE && hddr.StdId == CAN_id) {
+      if(CAN_status == HAL_OK && hddr.StdId == CAN_id) {
           // check if message is less than 2 bytes long because bad
           if(hddr.DLC < 1) {
+//              HAL_GPIO_TogglePin(Encoder_LED_GPIO_Port, Encoder_LED_Pin);
               // not an error, but we won't do anything about it
           } else {
               // check for requests that we recognize
@@ -308,8 +313,7 @@ int main(void)
                           break;
                       }
                       // read 32 bit signed int
-                      memcpy_v(&encoder_count, &data + 1, 4);
-
+                      memcpy_v(&encoder_count, &data[1], 4);
                       // transmit a message if in debug mode
                       #ifdef DEBUG_PRINTS
                       uart_size = sprintf((char*) uart_buffer, "Encoder ticks set to %l \r", encoder_count);
@@ -653,6 +657,9 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+
+  // this very bad
+
   /* USER CODE END Error_Handler_Debug */
 }
 
