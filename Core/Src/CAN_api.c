@@ -40,8 +40,23 @@ bool send_CAN_update(CAN_HandleTypeDef* hcan, Frame* frame, uint8_t id) {
 
     // set data frame desired frame
     data[0] = frame->type;
-    data[1] = frame->error_type;
-    memcpy(data + 2, &(frame->ticks), 4); // should we still send this if there is an error?
+    switch(frame->type) {
+        case FRAME_TYPE_TICKS:
+            memcpy(data + 1, &(frame->ticks), 4);
+            break;
+        case FRAME_TYPE_ERROR:
+            data[1] = frame->error_type;
+            break;
+        case FRAME_TYPE_DEBUG:
+            memcpy(data + 1, &(frame->ticks), 4);
+            memcpy(data + 5, &(CAN_outgoing_message_period_ms), 2);
+            data[7] = encoder_inverted;
+            break;
+        default:
+            break;
+    }
+
+     // should we still send this if there is an error?
 
     HAL_StatusTypeDef retval = HAL_CAN_AddTxMessage(hcan, &hddr, data, &mailbox);
     // send the message and check for error

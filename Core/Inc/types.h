@@ -10,11 +10,12 @@
 typedef enum {
   FRAME_TYPE_TICKS    = 0x00,
   FRAME_TYPE_VELOCITY = 0x01, // we may not use this for now
+  FRAME_TYPE_DEBUG    = 0x02,
   FRAME_TYPE_ERROR    = 0xFF
 } FrameType;
 
 typedef enum {
-  ERROR_TYPE_NONE = 0x00
+  ERROR_TYPE_NONE = 0x00,
 } ErrorType;
 
 typedef struct {

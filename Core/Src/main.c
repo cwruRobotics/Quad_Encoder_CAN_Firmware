@@ -46,12 +46,14 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+//#define DEBUG_CAN_MESSAGE
 //#define NO_5V5
 #define ENCODING 2
 #pragma message("Using encoding: X" XSTR(ENCODING))
 
 #define UART_PRINT_TIMEOUT 200 // ms
 #define UART_BUFFER_SIZE 1024
+
 
 //#define DEBUG_PRINTS
 #ifdef DEBUG_PRINTS
@@ -326,7 +328,7 @@ int main(void)
                           break;
                       }
                       // read 1 bit bool
-                      memcpy_v(&encoder_inverted, &data + 1, 1);
+                      memcpy_v(&encoder_inverted, &data[1], 1);
 
                       #ifdef DEBUG_PRINTS
                       uart_size = sprintf((char*) uart_buffer, "Encoder inverted set to %l \r", encoder_inverted);
@@ -340,7 +342,7 @@ int main(void)
                           break;
                       }
                       // read 16 bit unsigned integer
-                      memcpy(&CAN_outgoing_message_period_ms, &data + 1, 2);
+                      memcpy(&CAN_outgoing_message_period_ms, &data[1], 2);
                       break;
                   case REQUEST_NONE:
                   default:
@@ -361,8 +363,12 @@ int main(void)
         frame.error_type = ERROR_TYPE_NONE;
         frame.ticks = encoder_count;
 
-        // send the can frame with ticks in it
+        #ifdef DEBUG_CAN_MESSAGE
+        frame.type = FRAME_TYPE_DEBUG;
+        #endif
+
         bool can_send_success = send_CAN_update(&hcan, &frame, CAN_id);
+
         HAL_GPIO_WritePin(
           CAN_TRAFFIC_LED_GPIO_Port, CAN_TRAFFIC_LED_Pin,
           (can_send_success && CAN_connected)
