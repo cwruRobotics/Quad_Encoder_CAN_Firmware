@@ -72,24 +72,13 @@ bool read_SCL() {
 
 void i2c_start_condition() {
     HAL_GPIO_WritePin(EEPROM_LED_GPIO_Port, EEPROM_LED_Pin, GPIO_PIN_SET);
-    if(started) {
-        set_SDA(HIGH);
-        I2C_delay();
-        set_SCL(HIGH);
-        while(!read_SCL()) {
-            // some sort of delay
-            // well try 2 us
-            DWT_Delay(2);
-        }
-        I2C_delay();
-    }
-//    if(!read_SDA()) {
-//        arbitration_lost();
-//    }
+    set_SCL(HIGH);
+    set_SDA(HIGH);
+    I2C_delay();
     set_SDA(LOW);
     I2C_delay();
     set_SCL(LOW);
-    started = true;
+    I2C_delay();
 }
 
 void i2c_stop_condition() {
@@ -97,16 +86,9 @@ void i2c_stop_condition() {
     set_SDA(LOW);
     I2C_delay();
     set_SCL(HIGH);
-    while(!read_SCL()) {
-        DWT_Delay(2);
-    }
     I2C_delay();
     set_SDA(HIGH);
     I2C_delay();
-//    if(!read_SDA()) {
-//        arbitration_lost();
-//    }
-    started = false;
 }
 
 void i2c_write_bit(bool bit) {
@@ -118,9 +100,9 @@ void i2c_write_bit(bool bit) {
     I2C_delay();
     set_SCL(HIGH);
     I2C_delay();
-    while(!read_SCL()) {
-        DWT_Delay(2);
-    }
+//    while(!read_SCL()) {
+//        DWT_Delay(2);
+//    }
 
 //    if(bit && !read_SDA()) {
 //        arbitration_lost();
@@ -135,11 +117,12 @@ bool i2c_read_bit() {
     set_SDA(HIGH);
     I2C_delay();
     set_SCL(HIGH);
-
-    while(!read_SCL()) {
-        DWT_Delay(2);
-    }
     I2C_delay();
+
+//    while(!read_SCL()) {
+//        DWT_Delay(2);
+//    }
+    set_SDA(LOW);
     bit = read_SDA();
     set_SCL(LOW);
     return bit;
@@ -152,7 +135,7 @@ bool i2c_write_byte(uint8_t byte, bool start, bool stop) {
 
     if(start) i2c_start_condition();
 
-    for(bit = 0; bit < 8;++bit) {
+    for(bit = 0; bit < 8;bit++) {
         i2c_write_bit((byte & 0x80) != 0);
         byte <<= 1;
     }
@@ -167,10 +150,11 @@ uint8_t i2c_read_byte(bool nack, bool stop) {
     uint8_t byte = 0;
     uint8_t bit;
 
-    for(bit = 0; bit < 8; ++bit) {
-        byte = (byte << 1) | i2c_read_bit();
+    for(bit = 0; bit < 8; bit++) {
+        byte <<= 1;
+        byte |= i2c_read_bit();
     }
-    i2c_write_bit(nack);
+    i2c_write_bit(!nack);
 
     if(stop) i2c_stop_condition();
 
